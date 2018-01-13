@@ -41,7 +41,7 @@ expit <- function(beta, x) {
 # Prior density function
   # beta1, beta2 ~ Normal
   # parameter beta is a vector in the form of (beta0, beta1)
-  # the joint density is the product of the marginal densities ?????????????????????????????
+  # the joint density is the product of the marginal densities
 prior <- function(beta) {
   return(prod(dnorm(beta, mean=0, sd=10)))
 }
