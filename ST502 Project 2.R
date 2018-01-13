@@ -25,13 +25,12 @@ library(ggplot2)
 
 # Expit function
   # 1 / (1 + exp(-beta0 - beta1*x))
-  # parameter beta is a vector in the form of (beta0, beta1)
   # x is the vector of values of the predictor variable
-expit <- function(beta, x) {
+expit <- function(beta0, beta1, x) {
   # put x in matrix form (dimensions 2 x n)
   x <- cbind(rep(1, length(x)), x)
   # compute the expit function for the given beta and x
-  return(1 / (1 + exp(-x %*% beta)))
+  return(1 / (1 + exp(-x %*% c(beta0, beta1))))
 }
 
 
@@ -42,8 +41,8 @@ expit <- function(beta, x) {
   # beta1, beta2 ~ Normal
   # parameter beta is a vector in the form of (beta0, beta1)
   # the joint density is the product of the marginal densities
-prior <- function(beta) {
-  return(prod(dnorm(beta, mean=0, sd=10)))
+prior <- function(beta0, beta1) {
+  return(prod(dnorm(c(beta0, beta1), mean=0, sd=10)))
 }
 
 
@@ -51,12 +50,12 @@ prior <- function(beta) {
 
 
 # Likelihood function
-  # y | beta1, beta2 ~ Bernoulli
+  # y | beta0, beta1 ~ Bernoulli
   # parameter beta is a vector in the form of (beta0, beta1)
   # y is a vector of the observed values (0's for bad kicks and 1's for good kicks)
   # the joint density is the product of the marginal densities since observations are indep.
-likelihood <- function(beta, x, y) {
-  return(prod(dbinom(y, prob=expit(beta, x), size=1)))
+likelihood <- function(beta0, beta1, x, y) {
+  return(prod(dbinom(y, prob=expit(beta0, beta1, x), size=1)))
 }
 
 
@@ -70,29 +69,45 @@ likelihood <- function(beta, x, y) {
   # startvals is a vector in the form (beta0, beta1)
   # proposalsd is the sd of the jumping distribution
 betasampler <- function(x, y, niter, startvals, proposalsd) {
-  # Matrix to store sampled betas
-  beta <- matrix(rep(0, niter), nrow=niter, ncol=2)
-  # Use the starting value as the first beta
-  beta[1,] <- startvals
+  # Vectors to store sampled betas
+  beta0 <- rep(0, niter)
+  beta1 <- rep(0, niter)
+  # Use the starting values as first beta0 and beta1
+  beta0[1] <- startvals[1]
+  beta1[1] <- startvals[2]
   # Loop through the desired number of iterations
   for(i in 2:niter) {
-    # Temp value for beta is previous beta
-    currentbeta <- beta[i-1,]
+    # Temp values for beta
+    # Start with beta0
+    currentbeta0 <- beta0[i-1]
+    currentbeta1 <- beta1[i-1]
     # Get the next random draw from the N(0, proposalsd^2) jumping distribution
-    newbeta <- currentbeta + rnorm(2, 0, proposalsd)
+    newbeta0 <- currentbeta0 + rnorm(1, 0, proposalsd)
     # Find r ratio
-    r <- prior(beta=newbeta) * likelihood(beta=newbeta, x=x, y=y) /
-      (prior(beta=currentbeta) * likelihood(beta=currentbeta, x=x, y=y))
+    r <- prior(beta0=newbeta0, beta1=currentbeta1) * likelihood(beta0=newbeta0, beta1=currentbeta1, x=x, y=y) /
+      (prior(beta0=currentbeta0, beta1=currentbeta1) * likelihood(beta0=currentbeta0, beta1=currentbeta1, x=x, y=y))
     # Accept this value with prob. min(1, r)
     if(runif(1) < r) {
-      beta[i,] <- newbeta
+      beta0[i] <- newbeta0
     }
     else {
-      beta[i,] <- currentbeta
+      beta0[i] <- currentbeta0
+    } # end ifs
+    
+    # Repeat process above for beta1
+    currentbeta0 <- beta0[i]
+    newbeta1 <- currentbeta1 + rnorm(1, 0, proposalsd)
+    r <- prior(beta0=currentbeta0, beta1=newbeta1) * likelihood(beta0=currentbeta0, beta1=newbeta1, x=x, y=y) /
+      (prior(beta0=currentbeta0, beta1=currentbeta1) * likelihood(beta0=currentbeta0, beta1=currentbeta1, x=x, y=y))
+    if(runif(1) < r) {
+      beta1[i] <- newbeta1
+    }
+    else {
+      beta1[i] <- currentbeta1
     } # end ifs
   } # end loop
   # Return the vector of theta values
-  return(beta)
+  return(cbind(beta0, beta1))
 } # end function
 
 
@@ -130,8 +145,8 @@ fgdata <- read.csv("nfl2008_fga.csv", header=TRUE)
 
 # Approximate the posterior distribution of beta0 and beta1 using the MCMC sampling function
 randomDraws <- betasampler(x=fgdata$distance, y=fgdata$GOOD, 
-                           niter=100000, startvals=c(0,0), proposalsd=0.05)
-burnin <- 7500
+                           niter=50000, startvals=c(0,0), proposalsd=0.05)
+burnin <- 5000
 posterior_b0 <- randomDraws[-c(1:burnin), 1]
 posterior_b1 <- randomDraws[-c(1:burnin), 2]
 
