@@ -4,13 +4,13 @@
 # This program uses a Markov Chain Monte Carlo sampling method to estimate the 
 # parameters of a simple logistic regression model* and the sampling
 # distributions of the parameters. At the end, we compare the results to the
-# least squares fit. 
+# maximum likelihood fit. 
 #
 # * The logistic regression model aims to predict whether a field goal will be
 # good or bad given the distance from which it was kicked. The data is from the
 # 2008 NFL season.
 # 
-# Last edited: January 12, 2018 - Added project description to header
+# Last edited: January 13, 2018 - Edited project description in header
 # 
 
 
